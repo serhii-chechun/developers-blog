@@ -1,2 +1,2 @@
 # developers-blog
-https://www.youtube.com/@cogitarium
+https://blog.chechun.org
