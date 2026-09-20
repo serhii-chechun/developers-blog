@@ -1,0 +1,442 @@
+openapi: 3.0.3
+
+info:
+  title: Booking API
+  version: "1.0"
+
+servers:
+  - url: http://localhost:8080/v1
+
+security: []
+
+tags:
+  - name: hotels
+  - name: rooms
+  - name: reservations
+  - name: testing
+  - name: system
+
+paths:
+  /hotels:
+    get:
+      operationId: listHotels
+      tags: [hotels]
+      parameters:
+        - name: name_pattern
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: next_page
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelsPage'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /rooms:
+    get:
+      operationId: listRooms
+      tags: [rooms]
+      parameters:
+        - name: guests_count
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: check_in_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: check_out_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: hotel_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: next_page
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomsPage'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /reservations:
+    post:
+      operationId: createReservation
+      tags: [reservations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationItem'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "409":
+          $ref: '#/components/responses/Conflict'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /reservations/{booking_ref}:
+    get:
+      operationId: getReservation
+      tags: [reservations]
+      parameters:
+        - name: booking_ref
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 10
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationItem'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /testing:
+    put:
+      operationId: seedTestData
+      tags: [testing]
+      parameters:
+        - name: max_hotels
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+            maximum: 100
+        - name: max_rooms_per_hotel
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 6
+            minimum: 1
+            maximum: 1000
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedResult'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "409":
+          $ref: '#/components/responses/Conflict'
+        "500":
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: resetTestData
+      tags: [testing]
+      responses:
+        "204":
+          description: No Content
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /health:
+    servers:
+      - url: http://localhost:8080
+      - url: https://booking-api-demo.chechun.org
+    get:
+      operationId: health
+      tags: [system]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+components:
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    HotelItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+      required: [id, name, address, phone]
+
+    HotelsPage:
+      type: object
+      properties:
+        hotels:
+          type: array
+          items:
+            $ref: '#/components/schemas/HotelItem'
+        page_size:
+          type: integer
+        next_page:
+          type: string
+      required: [hotels, page_size]
+
+    RoomType:
+      type: object
+      properties:
+        room_type_caption:
+          type: string
+        room_type_capacity:
+          type: integer
+      required: [room_type_caption, room_type_capacity]
+
+    RoomItemHotelDetails:
+      type: object
+      properties:
+        hotel_name:
+          type: string
+        hotel_address:
+          type: string
+
+    RoomItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        room_label:
+          type: string
+        is_available:
+          type: boolean
+        room_type:
+          $ref: '#/components/schemas/RoomType'
+        hotel_id:
+          type: string
+          format: uuid
+        hotel_details:
+          $ref: '#/components/schemas/RoomItemHotelDetails'
+      required: [id, room_label, is_available, hotel_id]
+
+    RoomsPage:
+      type: object
+      properties:
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomItem'
+        page_size:
+          type: integer
+        next_page:
+          type: string
+      required: [rooms, page_size]
+
+    ReservationStatus:
+      type: integer
+      enum: [2000, 2001, 2002, 2003]
+
+    ReservationHotelDetails:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+
+    ReservationRoomDetails:
+      type: object
+      properties:
+        room_id:
+          type: string
+          format: uuid
+        room_label:
+          type: string
+        room_type_caption:
+          type: string
+        room_type_capacity:
+          type: integer
+        guests_count:
+          type: integer
+          minimum: 1
+      required: [room_id, room_label, room_type_caption, room_type_capacity, guests_count]
+
+    ReservationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        check_in_date:
+          type: string
+          format: date
+        check_out_date:
+          type: string
+          format: date
+        guest_full_name:
+          type: string
+        guest_email:
+          type: string
+          format: email
+        guests_count:
+          type: integer
+          minimum: 1
+        reference:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        hotel_id:
+          type: string
+          format: uuid
+        hotel_details:
+          $ref: '#/components/schemas/ReservationHotelDetails'
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationRoomDetails'
+      required: [id, check_in_date, check_out_date, guest_full_name, guest_email, guests_count, reference, status, hotel_id, rooms]
+
+    CreateReservationRequest:
+      type: object
+      properties:
+        hotel_id:
+          type: string
+          format: uuid
+        check_in_date:
+          type: string
+          format: date
+        check_out_date:
+          type: string
+          format: date
+        guest_full_name:
+          type: string
+        guest_email:
+          type: string
+          format: email
+        guests_count:
+          type: integer
+          minimum: 1
+        room_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required: [hotel_id, check_in_date, check_out_date, guest_full_name, guest_email, guests_count]
+
+    SeedResult:
+      type: object
+      properties:
+        hotels:
+          type: array
+          items:
+            $ref: '#/components/schemas/HotelItem'
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomItem'
+        room_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomType'
+      required: [hotels, rooms, room_types]

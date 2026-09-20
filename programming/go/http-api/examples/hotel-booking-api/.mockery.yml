@@ -1,0 +1,56 @@
+all: false
+dir: '{{.InterfaceDir}}/mock'
+filename: 'mocks.go'
+force-file-write: true
+formatter: goimports
+formatter-options:
+  goimports:
+    local-prefix: hotel-booking-api
+structname: 'Mock{{.InterfaceName | firstUpper}}'
+pkgname: 'mock'
+recursive: false
+template: testify
+require-template-schema-exists: false
+log-level: info
+
+packages:
+  hotel-booking-api/internal/app/server:
+    interfaces:
+      hotelHandler:
+      roomHandler:
+      reservationHandler:
+      testingHandler:
+      reservationWorker:
+      storage:
+  hotel-booking-api/internal/app/testing/handler:
+    interfaces:
+      testingService:
+  hotel-booking-api/internal/app/testing/service:
+    interfaces:
+      hotelService:
+      roomService:
+      reservationService:
+  hotel-booking-api/internal/hotel/handler:
+    interfaces:
+      hotelService:
+  hotel-booking-api/internal/hotel/service:
+    interfaces:
+      hotelRepository:
+  hotel-booking-api/internal/reservation/handler:
+    interfaces:
+      reservationService:
+  hotel-booking-api/internal/reservation/repository:
+    interfaces:
+      rowScanner:
+  hotel-booking-api/internal/reservation/service:
+    interfaces:
+      reservationRepository:
+  hotel-booking-api/internal/reservation/worker:
+    interfaces:
+      reservationService:
+  hotel-booking-api/internal/room/handler:
+    interfaces:
+      roomService:
+  hotel-booking-api/internal/room/service:
+    interfaces:
+      roomRepository:

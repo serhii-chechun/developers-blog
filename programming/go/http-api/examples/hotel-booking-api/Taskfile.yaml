@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  tests:
+    desc: 'Run the unit tests, printing coverage per package plus the overall total for the hand-written packages'
+    cmds:
+      - defer: rm -f coverage.out
+      - go test -coverprofile=coverage.out $(go list ./... | grep -v /mock)
+      - go tool cover -func=coverage.out | tail -1
+
+  mocks:
+    desc: 'Regenerate every mock: deletes the generated mock sub-packages, then runs mockery'
+    cmds:
+      - task: mocks:clean
+      - go tool mockery
+
+  mocks:clean:
+    desc: 'Delete the generated mock sub-packages (internal/**/mock)'
+    cmds:
+      - find internal -type d -name mock -prune -exec rm -rf {} +
