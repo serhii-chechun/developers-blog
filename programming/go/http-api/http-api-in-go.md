@@ -1057,7 +1057,7 @@ rule** that section 2.4 only gestures at.
 
 **Related posts**
 
-- [Optimizations in Go: A Multi-Layer Framework](https://blog.chechun.org/) - same
+- [Optimizations in Go: A Multi-Layer Framework](https://blog.chechun.org/posts/optimizations-in-go/) - same
   "every claim is reproducible" promise
-- [Regular Expressions in Go: A Deep Dive](https://blog.chechun.org/) - same framing: a design
+- [Regular Expressions in Go: A Deep Dive](https://blog.chechun.org/posts/regexp-in-go-deep-dive/) - same framing: a design
   decision, and the trade it implies
