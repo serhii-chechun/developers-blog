@@ -8,6 +8,8 @@ This guide covers what it checks, how to install it on each platform, and how to
 
 > **The Golden Rule:** validate before something else does. A typo costs two seconds in a pre-commit hook and a failed release in a migration. The tool that catches it should run early, offline, and fast enough that nobody is tempted to skip it.
 
+> **Updated for v1.0.1:** this guide matches the current release, [`pgqv` v1.0.1](https://github.com/serhii-chechun/pg-query-validate/releases/tag/v1.0.1). The change that matters here is meta-command handling - `.sql` files that mix in `psql` backslash commands now validate instead of failing on syntax (section 1).
+
 ---
 
 ## Table of Contents
@@ -36,6 +38,12 @@ Two checks, run over a single `.sql` file:
 
 The second one is the reason the tool exists. PostgreSQL accepts *any* identifier as a type name and only resolves it when the statement runs, so `VARCHAT(255)` is valid syntax that fails on a real server. Editing distance is what makes the check usable: flagging every unresolved type name would light up every schema that defines its own enums or domains, so `pgqv` only reports names that are one character away from a built-in type - a substitution, a transposition, an insertion or a deletion.
 
+### Meta commands
+
+A `.sql` file written to be piped into `psql` may also carry meta-commands - `\echo`, `\@echo`, `\i` and the rest. psql treats an unquoted backslash as the start of a meta-command wherever it appears, so one can follow SQL on the same line (`select 1; \echo done`). None of that is SQL, and a grammar-only check would report every meta-command as a syntax error; `pgqv` blanks the command text before parsing and validates only the surrounding SQL.
+
+A backslash inside a string, a quoted identifier, a dollar-quoted body or a comment does not start a meta-command and is left alone. psql's `\;` and `\:` escapes are honoured: the backslash is dropped and the `;` or `:` it protects is kept. The source is blanked only in memory, so line and column numbers in diagnostics still refer to the original file - and the commands are recognised, never run.
+
 What it does **not** do is resolve anything against a catalog. It has no connection to a database, so table names, column names and function signatures are all outside its reach. That is the price of running offline, and it is a deliberate trade: a validator that needs a live PostgreSQL cannot run in a pre-commit hook, in CI on a pull request, or on a laptop between two `git` commands.
 
 ## 2. Installing pgqv
@@ -58,9 +66,9 @@ Cloning into '.../homebrew-pg-query-validate'...
 Tapped 1 formula (28 files, 94.2KB).
 Trusted tap: https://github.com/serhii-chechun/pg-query-validate
 ==> Fetching downloads for: pgqv
-✔︎ Formula pgqv (1.0.0)
+✔︎ Formula pgqv (1.0.1)
 ==> Installing pgqv from serhii-chechun/pg-query-validate
-🍺  /opt/homebrew/Cellar/pgqv/1.0.0: 4 files, 8.5MB, built in 1 second
+🍺  /opt/homebrew/Cellar/pgqv/1.0.1: 4 files, 8.5MB, built in 1 second
 ```
 
 The middle step is not optional, and it is the one most people will trip over. Homebrew trusts its own taps by default and refuses to load formulae from a third-party tap until it is trusted:
@@ -87,19 +95,19 @@ Every release attaches the archives below, each containing a single self-contain
 
 | Platform | Archive |
 | --- | --- |
-| macOS, Apple Silicon | `pgqv_1.0.0_darwin_arm64.tar.gz` |
-| macOS, Intel | `pgqv_1.0.0_darwin_amd64.tar.gz` |
-| Linux, x86-64 | `pgqv_1.0.0_linux_amd64.tar.gz` |
-| Linux, arm64 | `pgqv_1.0.0_linux_arm64.tar.gz` |
-| Windows, x86-64 | `pgqv_1.0.0_windows_amd64.zip` |
+| macOS, Apple Silicon | `pgqv_1.0.1_darwin_arm64.tar.gz` |
+| macOS, Intel | `pgqv_1.0.1_darwin_amd64.tar.gz` |
+| Linux, x86-64 | `pgqv_1.0.1_linux_amd64.tar.gz` |
+| Linux, arm64 | `pgqv_1.0.1_linux_arm64.tar.gz` |
+| Windows, x86-64 | `pgqv_1.0.1_windows_amd64.zip` |
 
-They are attached to [the v1.0.0 release](https://github.com/serhii-chechun/pg-query-validate/releases/tag/v1.0.0). Download the one that matches the machine, or use `curl` directly - which also makes the step reproducible in a Dockerfile or a bootstrap script:
+They are attached to [the v1.0.1 release](https://github.com/serhii-chechun/pg-query-validate/releases/tag/v1.0.1). Download the one that matches the machine, or use `curl` directly - which also makes the step reproducible in a Dockerfile or a bootstrap script:
 
 **macOS and Linux**
 
 ```bash
-$ curl -LO https://github.com/serhii-chechun/pg-query-validate/releases/download/v1.0.0/pgqv_1.0.0_linux_amd64.tar.gz
-$ tar -xzf pgqv_1.0.0_linux_amd64.tar.gz
+$ curl -LO https://github.com/serhii-chechun/pg-query-validate/releases/download/v1.0.1/pgqv_1.0.1_linux_amd64.tar.gz
+$ tar -xzf pgqv_1.0.1_linux_amd64.tar.gz
 $ sudo install -m 755 pgqv /usr/local/bin/pgqv
 ```
 
@@ -110,7 +118,7 @@ Swap `linux_amd64` for the archive that matches the host: `darwin_arm64` on an M
 The Windows archive is a `.zip` containing `pgqv.exe`. Extract it and put the directory on `PATH`:
 
 ```powershell
-> Expand-Archive pgqv_1.0.0_windows_amd64.zip -DestinationPath .
+> Expand-Archive pgqv_1.0.1_windows_amd64.zip -DestinationPath .
 > .\pgqv.exe .\schema.sql
 ```
 
@@ -121,7 +129,7 @@ $ pgqv
 ```
 
 ```
-PostgreSQL Query Validator v1.0 (c) 2026, Serhii Chechun
+PostgreSQL Query Validator v1.0.1 (c) 2026, Serhii Chechun
 Usage: pgqv <filename.sql>
 ```
 
@@ -130,11 +138,11 @@ Usage: pgqv <filename.sql>
 If a Go toolchain is already present, this is the shortest route. It requires **Go 1.27.1 or newer** and **a C compiler**, because the SQL parser is compiled from C:
 
 ```bash
-$ go install github.com/serhii-chechun/pg-query-validate/cmd/pgqv@v1.0.0
+$ go install github.com/serhii-chechun/pg-query-validate/cmd/pgqv@v1.0.1
 ```
 
 ```
-go: downloading github.com/serhii-chechun/pg-query-validate v1.0.0
+go: downloading github.com/serhii-chechun/pg-query-validate v1.0.1
 ```
 
 The binary lands in `$(go env GOPATH)/bin` (usually `~/go/bin`), which has to be on `PATH`. With a warm build cache this takes about five seconds; on a cold machine the first build compiles a large amount of bundled C and takes a few minutes.
@@ -168,16 +176,16 @@ $ go build -o pgqv ./cmd/pgqv
 Each release also publishes `SHA256SUMS`. If the archive came from anywhere other than the release page, check it:
 
 ```bash
-$ curl -LO https://github.com/serhii-chechun/pg-query-validate/releases/download/v1.0.0/SHA256SUMS
+$ curl -LO https://github.com/serhii-chechun/pg-query-validate/releases/download/v1.0.1/SHA256SUMS
 $ shasum -a 256 -c SHA256SUMS
 ```
 
 ```
-pgqv_1.0.0_darwin_amd64.tar.gz: OK
-pgqv_1.0.0_darwin_arm64.tar.gz: OK
-pgqv_1.0.0_linux_amd64.tar.gz: OK
-pgqv_1.0.0_linux_arm64.tar.gz: OK
-pgqv_1.0.0_windows_amd64.zip: OK
+pgqv_1.0.1_darwin_amd64.tar.gz: OK
+pgqv_1.0.1_darwin_arm64.tar.gz: OK
+pgqv_1.0.1_linux_amd64.tar.gz: OK
+pgqv_1.0.1_linux_arm64.tar.gz: OK
+pgqv_1.0.1_windows_amd64.zip: OK
 ```
 
 On Linux, `sha256sum -c SHA256SUMS` is the equivalent command.
@@ -261,7 +269,31 @@ error: unknown type "boolen" (did you mean "boolean"?)
 
 Note the gutter on the last two findings: it widens to fit the line number, so the carets stay aligned on lines 9 and 10 just as they do on line 3. `TSVETCOR` is caught by the transposition case - two adjacent characters the wrong way round, which is exactly the shape of a hand-typed typo, and which a naive "one character different" check would miss.
 
-### 5.2 A clean file
+### 5.2 A file with psql meta-commands
+
+Files that are run through `psql` often mix meta-commands in with the SQL. Those are not SQL, and before v1.0.1 they reached the grammar and came back as syntax errors. The command text is now blanked before parsing, so the file validates cleanly and exits `0`:
+
+```bash
+$ pgqv psql-script.sql
+$ echo $?
+0
+```
+
+The surrounding SQL is still checked, and a typo beside a meta-command is reported at its position in the original file:
+
+```bash
+$ pgqv psql-script.sql
+```
+
+```
+error: unknown type "varchat" (did you mean "varchar"?)
+ --> psql-script.sql:4:22
+  |
+4 | create table t (name VARCHAT(255));
+  |                      ^^^^^^^
+```
+
+### 5.3 A clean file
 
 A file with nothing wrong produces no output at all, and exits `0`:
 
@@ -273,7 +305,7 @@ $ echo $?
 
 Silence on success is deliberate - it means the output of a run over a directory is exactly the list of files that need attention.
 
-### 5.3 A syntax error is a different animal
+### 5.4 A syntax error is a different animal
 
 Some problems are rejected by the grammar itself, and those are reported differently, because there is no parse tree to walk:
 
@@ -287,7 +319,7 @@ Processing issue: PG_SQL parsing: syntax error at or near "where"
 
 Both kinds exit `1`, so a script does not have to distinguish them - but the message makes clear whether the file is malformed or merely suspicious.
 
-### 5.4 Errors that are not validation findings
+### 5.5 Errors that are not validation findings
 
 A missing file is an error, not a finding, and says so:
 
@@ -403,6 +435,7 @@ The file is valid - `NOT ENFORCED` is a PostgreSQL 18 constraint attribute - but
 | Limitation | Why | Workaround |
 | --- | --- | --- |
 | PostgreSQL 17 grammar | Newest available parser dependency | Nothing yet - it is a dependency bump when released |
+| Multi-line meta-commands | Only the single-line form is handled | Keep each meta-command on one line |
 | No catalog resolution | Deliberately offline | Pair it with a migration dry-run against a test database |
 | Type typos only, one edit away | A stricter rule fires on every user-defined type | None - this is the tradeoff that keeps it usable |
 | One file per run | The current interface | Loop over files (section 6.1) |
@@ -427,7 +460,7 @@ Everything else in this guide - the exit codes, the caret output, the wrapper fo
 **The tool**
 
 - [pg-query-validate](https://github.com/serhii-chechun/pg-query-validate) - source, README and release notes
-- [v1.0.0 release](https://github.com/serhii-chechun/pg-query-validate/releases/tag/v1.0.0) - the archives and `SHA256SUMS`
+- [v1.0.1 release](https://github.com/serhii-chechun/pg-query-validate/releases/tag/v1.0.1) - the archives and `SHA256SUMS`
 - [`Formula/pgqv.rb`](https://github.com/serhii-chechun/pg-query-validate/blob/main/Formula/pgqv.rb) - the Homebrew formula, hosted in the project's own repository
 
 **PostgreSQL**
