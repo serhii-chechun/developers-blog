@@ -123,10 +123,14 @@ func candidateRoomRows(rows ...[]driver.Value) *sqlmock.Rows {
 	return result
 }
 
-func expectHotelExists(mock sqlmock.Sqlmock, exists bool) {
-	mock.ExpectQuery(regexp.QuoteMeta(existsHotelQuery)).
+func expectHotelLocked(mock sqlmock.Sqlmock, exists bool) {
+	rows := sqlmock.NewRows([]string{"id"})
+	if exists {
+		rows.AddRow(testHotelID)
+	}
+	mock.ExpectQuery(regexp.QuoteMeta(lockHotelQuery)).
 		WithArgs(testHotelID).
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(exists))
+		WillReturnRows(rows)
 }
 
 func expectInsertReservation(mock sqlmock.Sqlmock, guestsCount int) *model.ReservationItem {
@@ -168,7 +172,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.RoomIDs = []string{"r1"} },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(countRequestedRoomsQuery)).
 					WithArgs(testHotelID, pq.Array([]string{"r1"})).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -190,7 +194,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.GuestsCount = 3 },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(lockAvailableRoomsQuery)).
 					WithArgs(lockArgs...).
 					WillReturnRows(candidateRoomRows(
@@ -212,7 +216,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.GuestsCount = 7 },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(lockAvailableRoomsQuery)).
 					WithArgs(lockArgs...).
 					WillReturnRows(candidateRoomRows(
@@ -240,7 +244,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.GuestsCount = 10 },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(lockAvailableRoomsQuery)).
 					WithArgs(lockArgs...).
 					WillReturnRows(candidateRoomRows(
@@ -255,7 +259,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			name: "fails when the hotel does not exist",
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, false)
+				expectHotelLocked(mock, false)
 				mock.ExpectRollback()
 			},
 			wantErr: model.ErrHotelNotFound,
@@ -265,7 +269,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.RoomIDs = []string{"r2", "r1"} },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(countRequestedRoomsQuery)).
 					WithArgs(testHotelID, pq.Array([]string{"r1", "r2"})).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -278,7 +282,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.RoomIDs = []string{"r1"} },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(countRequestedRoomsQuery)).
 					WithArgs(testHotelID, pq.Array([]string{"r1"})).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -294,7 +298,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.RoomIDs = []string{"r1"} },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(countRequestedRoomsQuery)).
 					WithArgs(testHotelID, pq.Array([]string{"r1"})).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -320,7 +324,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.RoomIDs = []string{"r1"} },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(countRequestedRoomsQuery)).
 					WithArgs(testHotelID, pq.Array([]string{"r1"})).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
@@ -339,7 +343,7 @@ func TestReservationRepository_PutReservation(t *testing.T) {
 			mutate: func(r *model.ReservationItem) { r.RoomIDs = []string{"r1"} },
 			expectations: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				expectHotelExists(mock, true)
+				expectHotelLocked(mock, true)
 				mock.ExpectQuery(regexp.QuoteMeta(countRequestedRoomsQuery)).
 					WithArgs(testHotelID, pq.Array([]string{"r1"})).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))

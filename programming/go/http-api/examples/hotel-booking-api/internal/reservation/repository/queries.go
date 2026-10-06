@@ -35,7 +35,9 @@ const (
 		ORDER BY rr.reservation_id, rm.room_label
 	`
 
-	existsHotelQuery         = `SELECT EXISTS (SELECT 1 FROM hotels WHERE id = $1)`
+	// lockHotelQuery locks the hotel row so that concurrent bookings for the
+	// same hotel serialize their room allocation.
+	lockHotelQuery           = `SELECT id FROM hotels WHERE id = $1 FOR UPDATE`
 	countRequestedRoomsQuery = `SELECT COUNT(*) FROM rooms WHERE hotel_id = $1 AND id = ANY($2)`
 
 	// lockRequestedRoomsQuery locks the explicitly requested rooms that are

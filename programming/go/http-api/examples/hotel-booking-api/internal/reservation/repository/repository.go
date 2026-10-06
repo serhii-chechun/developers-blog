@@ -123,12 +123,15 @@ func (r *reservationRepository) PutReservation(ctx context.Context, res model.Re
 	}
 	defer tx.Rollback()
 
-	var hotelExists bool
-	if err := tx.QueryRowContext(ctx, existsHotelQuery, res.HotelID).Scan(&hotelExists); err != nil {
-		return nil, fmt.Errorf("check hotel exists: %w", err)
-	}
-	if !hotelExists {
-		return nil, model.ErrHotelNotFound
+	// Lock the hotel row to serialize room allocation for concurrent bookings
+	// of the same hotel. Without this, two transactions can both pass the
+	// availability check for the same rooms before either commits.
+	var hotelLocked string
+	if err := tx.QueryRowContext(ctx, lockHotelQuery, res.HotelID).Scan(&hotelLocked); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, model.ErrHotelNotFound
+		}
+		return nil, fmt.Errorf("lock hotel: %w", err)
 	}
 
 	allocations, err := allocateReservationRooms(ctx, tx, res)
